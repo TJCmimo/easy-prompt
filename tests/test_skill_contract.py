@@ -23,13 +23,13 @@ class BackgroundContractTests(unittest.TestCase):
         self.assertIn("`背景` 是条件字段", skill)
         self.assertIn("删除测试", skill)
         self.assertIn("逐项检查不等于逐项输出", skill)
-        self.assertIn("不得复述已在 `目标` 或 `输入` 中表达的信息", skill)
+        self.assertIn("不得复述已在 `目标` 或 `材料` 中表达的信息", skill)
         self.assertIn("预算、人手、时间等资源上限属于 `限制`", skill)
         self.assertNotIn("背景、限制或验收缺失", skill)
         self.assertNotIn("按以下固定字段组织", skill)
 
         portable = read("portable/easy-prompt-portable.md")
-        self.assertIn("不得复述已在 `目标` 或 `输入` 中表达的信息", portable)
+        self.assertIn("不得复述已在 `目标` 或 `材料` 中表达的信息", portable)
 
     def test_runtime_rules_do_not_default_to_rm_newcomer(self) -> None:
         runtime_files = (
@@ -220,6 +220,34 @@ class TopFiveGapContractTests(unittest.TestCase):
         "portable/easy-prompt-portable.md",
     )
 
+    def test_material_replaces_input_as_the_prompt_field_label(self) -> None:
+        field_documents = (
+            "SKILL.md",
+            "portable/easy-prompt-portable.md",
+            "references/five-elements.md",
+            "references/recipes.md",
+            "references/examples.md",
+        )
+
+        for relative_path in field_documents:
+            content = read(relative_path)
+            with self.subTest(path=relative_path):
+                self.assertIn("材料", content)
+                self.assertNotIn("\n输入：", content)
+
+        for relative_path in self.runtime_copies:
+            with self.subTest(path=relative_path, expected="五要素字段名"):
+                self.assertIn(
+                    "目标、背景、材料、限制、验收",
+                    read(relative_path),
+                )
+
+        self.assertIn(
+            "目标、背景、材料、限制、验收",
+            read("README.md"),
+        )
+        self.assertIn("输入事件", read("references/domain-structures.md"))
+
     def test_harvest_evidence_volume_and_deletion_contract_is_in_both_copies(
         self,
     ) -> None:
@@ -358,6 +386,27 @@ class TopFiveGapContractTests(unittest.TestCase):
         )
 
         self.assertEqual(examples, portable)
+
+
+    def test_rewind_asymmetry_and_field_assignment_are_in_both_copies(
+        self,
+    ) -> None:
+        required_phrases = (
+            "回溯只回退对话、不回退文件",
+            "无来由的 diff 当异常追查",
+            "材料、bug 现象与失败观察入 `材料`",
+        )
+
+        for relative_path in self.runtime_copies:
+            content = read(relative_path)
+            for expected in required_phrases:
+                with self.subTest(path=relative_path, expected=expected):
+                    self.assertIn(expected, content)
+
+        skill = read("SKILL.md")
+        with self.subTest(path="SKILL.md", expected="关键背景已改为关键信息"):
+            self.assertNotIn("关键背景", skill)
+            self.assertIn("等关键信息要内联写全", skill)
 
 
 if __name__ == "__main__":
