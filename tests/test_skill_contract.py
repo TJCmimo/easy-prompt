@@ -214,5 +214,151 @@ class IndependentCriticContractTests(unittest.TestCase):
                 self.assertIn("最终推荐是否改变", content)
 
 
+class TopFiveGapContractTests(unittest.TestCase):
+    runtime_copies = (
+        "SKILL.md",
+        "portable/easy-prompt-portable.md",
+    )
+
+    def test_harvest_evidence_volume_and_deletion_contract_is_in_both_copies(
+        self,
+    ) -> None:
+        required_phrases = (
+            "用户亲述的需求、操作或观察结果",
+            "代码、配置、日志或命令输出",
+            "不得自动升级为已验证根因",
+            "AI 自身未经验证的断言",
+            "候选方向",
+            "只摘录能支持当前任务的关键片段",
+            "注明来源位置",
+            "对每项候选收割内容执行“删除测试”",
+            "适用于全部收割内容",
+        )
+
+        for relative_path in self.runtime_copies:
+            content = read(relative_path)
+            for expected in required_phrases:
+                with self.subTest(path=relative_path, expected=expected):
+                    self.assertIn(expected, content)
+
+    def test_review_diff_and_zero_class_exit_are_in_both_copies(self) -> None:
+        runtime_phrases = (
+            "代码评审",
+            "review diff",
+            "目标清楚但五类均不匹配",
+            "未套用五类配方",
+            "不加入改码或回滚要求",
+        )
+
+        for relative_path in self.runtime_copies:
+            content = read(relative_path)
+            for expected in runtime_phrases:
+                with self.subTest(path=relative_path, expected=expected):
+                    self.assertIn(expected, content)
+
+        recipes = read("references/recipes.md")
+        portable = read("portable/easy-prompt-portable.md")
+        for content_name, content in (
+            ("references/recipes.md", recipes),
+            ("portable/easy-prompt-portable.md", portable),
+        ):
+            for expected in (
+                "严重性评级保守",
+                "只报告能从代码确认的问题",
+                "`文件:行`",
+            ):
+                with self.subTest(path=content_name, expected=expected):
+                    self.assertIn(expected, content)
+
+        for expected in (
+            "代码评审默认限制",
+            "代码评审默认验收",
+            "代码评审转写模板",
+        ):
+            with self.subTest(path="references/recipes.md", expected=expected):
+                self.assertIn(expected, recipes)
+
+    def test_flexible_format_and_scenario_examples_are_locked(self) -> None:
+        required_phrases = (
+            "弹性格式",
+            "单一明确目标、无需收割或粘贴任何材料、无特殊限制",
+            "2–3 行自然语句",
+            "会话收割且面向 coding agent",
+            "对照例 6",
+            "弹性格式对照例 7",
+        )
+
+        for relative_path in self.runtime_copies:
+            content = read(relative_path)
+            for expected in required_phrases:
+                with self.subTest(path=relative_path, expected=expected):
+                    self.assertIn(expected, content)
+
+        for relative_path in (
+            "references/examples.md",
+            "portable/easy-prompt-portable.md",
+        ):
+            content = read(relative_path)
+            example_6 = markdown_section(content, "## 例 6", "## 例 7")
+            example_7 = markdown_section(content, "## 例 7", None)
+            with self.subTest(path=relative_path, example=6):
+                self.assertIn("会话收割·面向 coding agent", example_6)
+                self.assertIn("`src/cache.cpp`", example_6)
+                self.assertIn(
+                    "ctest --test-dir build -R cache --output-on-failure",
+                    example_6,
+                )
+                self.assertIn("`/tmp/cache-tsan.log`", example_6)
+                self.assertNotRegex(example_6, r"<[^>]+>")
+            with self.subTest(path=relative_path, example=7):
+                self.assertIn("弹性格式最小示例", example_7)
+                self.assertIn("用大白话解释 C++ 的 RAII", example_7)
+                self.assertIn("不套五要素标签", example_7)
+
+    def test_reset_mainline_and_merged_final_line_are_in_both_copies(
+        self,
+    ) -> None:
+        required_phrases = (
+            "现在切换任务，忽略前文风格，以下只以本条为准",
+            "用户描述、或会话内可直接观察到",
+            "当前唯一目标：<X>",
+            "候选问题列表",
+            "多条末行提醒同时触发时",
+            "必须合并为同一句且只占",
+            "不再同时要求回溯发送",
+        )
+
+        for relative_path in self.runtime_copies:
+            content = read(relative_path)
+            for expected in required_phrases:
+                with self.subTest(path=relative_path, expected=expected):
+                    self.assertIn(expected, content)
+
+    def test_two_stage_waiting_sentences_are_in_both_copies(self) -> None:
+        required_phrases = (
+            "等 AI 展开完再发第二条",
+            "拿候选术语对照代码",
+            "新开一个干净会话再发第二条",
+        )
+
+        for relative_path in self.runtime_copies:
+            content = read(relative_path)
+            for expected in required_phrases:
+                with self.subTest(path=relative_path, expected=expected):
+                    self.assertIn(expected, content)
+
+    def test_new_examples_are_identical_in_reference_and_portable_copy(
+        self,
+    ) -> None:
+        examples = markdown_section(read("references/examples.md"), "## 例 6", None)
+        portable = markdown_section(
+            read("portable/easy-prompt-portable.md"),
+            "## 例 6",
+            None,
+        )
+
+        self.assertEqual(examples, portable)
+
+
 if __name__ == "__main__":
     unittest.main()
