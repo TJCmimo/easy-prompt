@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from typing import Optional
 import unittest
 
@@ -11,9 +12,82 @@ def read(relative_path: str) -> str:
 
 
 def markdown_section(content: str, heading: str, next_heading: Optional[str]) -> str:
-    start = content.index(heading)
-    end = content.index(next_heading, start) if next_heading else len(content)
+    heading_pattern = re.compile(
+        rf"^{re.escape(heading)}(?=[（\n])",
+        re.MULTILINE,
+    )
+    start_match = heading_pattern.search(content)
+    if start_match is None:
+        raise ValueError(f"heading not found: {heading}")
+    start = start_match.start()
+
+    if next_heading:
+        next_pattern = re.compile(
+            rf"^{re.escape(next_heading)}(?=[（\n])",
+            re.MULTILINE,
+        )
+        next_match = next_pattern.search(content, start_match.end())
+        if next_match is None:
+            raise ValueError(f"heading not found: {next_heading}")
+        end = next_match.start()
+    else:
+        end = len(content)
     return content[start:end]
+
+
+class GenericReleaseContractTests(unittest.TestCase):
+    def test_public_runtime_documents_have_no_legacy_single_domain_language(
+        self,
+    ) -> None:
+        public_runtime_documents = (
+            "README.md",
+            "SKILL.md",
+            "portable/easy-prompt-portable.md",
+            "references/anti-patterns.md",
+            "references/catalysts.md",
+            "references/domain-structures.md",
+            "references/examples.md",
+            "references/five-elements.md",
+            "references/recipes.md",
+        )
+        legacy_single_domain_language = re.compile(
+            r"Robo"
+            r"Master|(?<![A-Za-z0-9_])R"
+            r"M(?![A-Za-z0-9_])|装"
+            r"甲板|自"
+            r"瞄|哨"
+            r"兵|视觉"
+            r"组",
+            re.IGNORECASE,
+        )
+
+        for relative_path in public_runtime_documents:
+            with self.subTest(path=relative_path):
+                self.assertNotRegex(
+                    read(relative_path),
+                    legacy_single_domain_language,
+                )
+
+    def test_gold_examples_cover_distinct_domains(self) -> None:
+        examples = read("references/examples.md")
+        domains = {
+            "## 例 1": ("工程执行类", "订单查询接口", "调用链"),
+            "## 例 2": ("学习理解类", "A/B 测试报告", "统计基础"),
+            "## 例 3": ("决策比较类", "远程公益团队", "知识库"),
+            "## 例 4": ("猜想探索类", "社区读书会", "每月预算"),
+            "## 例 5": ("内容生成类", "线上工作坊", "主持人操作手册"),
+            "## 例 6": ("会话收割·面向 coding agent", "TSAN"),
+            "## 例 7": ("弹性格式最小示例", "机会成本", "周末时间"),
+            "## 例 8": ("引导采样 → 上下文回滚", "旧版页面", "起名字"),
+        }
+        headings = tuple(domains)
+
+        for index, (heading, required_phrases) in enumerate(domains.items()):
+            next_heading = headings[index + 1] if index + 1 < len(headings) else None
+            section = markdown_section(examples, heading, next_heading)
+            for expected in required_phrases:
+                with self.subTest(example=heading, expected=expected):
+                    self.assertIn(expected, section)
 
 
 class BackgroundContractTests(unittest.TestCase):
@@ -31,19 +105,19 @@ class BackgroundContractTests(unittest.TestCase):
         portable = read("portable/easy-prompt-portable.md")
         self.assertIn("不得复述已在 `目标` 或 `材料` 中表达的信息", portable)
 
-    def test_runtime_rules_do_not_default_to_rm_newcomer(self) -> None:
-        runtime_files = (
+    def test_runtime_rules_do_not_infer_identity_from_domain(self) -> None:
+        runtime_copies = (
             "SKILL.md",
-            "references/five-elements.md",
-            "references/recipes.md",
             "portable/easy-prompt-portable.md",
         )
 
-        for relative_path in runtime_files:
+        for relative_path in runtime_copies:
             with self.subTest(path=relative_path):
                 content = read(relative_path)
-                self.assertNotIn('默认"RM 新生、相应方向基础一般"', content)
-                self.assertNotIn("背景：【推断】RM", content)
+                self.assertIn(
+                    "默认推断用户是新手、专家或具备特定身份和能力",
+                    content,
+                )
 
     def test_examples_cover_omitted_and_retained_background(self) -> None:
         examples = read("references/examples.md")
@@ -55,16 +129,31 @@ class BackgroundContractTests(unittest.TestCase):
         example_2 = markdown_section(examples, "## 例 2", "## 例 3")
         example_3 = markdown_section(examples, "## 例 3", "## 例 4")
         example_4 = markdown_section(examples, "## 例 4", "## 例 5")
-        example_5 = markdown_section(examples, "## 例 5", None)
+        example_5 = markdown_section(examples, "## 例 5", "## 例 6")
 
         self.assertNotIn("\n背景：", example_1)
-        self.assertIn("\n背景：", example_2)
-        self.assertNotIn("目标：用适合初学者", example_2)
-        self.assertNotIn("背景：RM 自瞄项目", example_3)
-        self.assertNotIn("背景：RM 哨兵导航项目", example_4)
+        self.assertIn(
+            "背景：读者负责活动运营，刚接触数据分析，统计基础一般",
+            example_2,
+        )
+        self.assertIn(
+            "背景：团队共 6 人、采用远程协作、成员每半年轮换，"
+            "维护工作由志愿者承担",
+            example_3,
+        )
         self.assertNotIn("\n背景：", example_4)
-        self.assertIn("限制：项目人手和经费有限", example_4)
-        self.assertNotIn("目标：为 RM 视觉组", example_5)
+        self.assertIn(
+            "限制：可投入 3 名志愿者，每月预算不超过 500 元",
+            example_4,
+        )
+        self.assertIn(
+            "背景：读者是第一次主持线上工作坊的志愿者",
+            example_5,
+        )
+        self.assertIn(
+            "限制：【推断】格式仿照下面的目标风格样例",
+            example_5,
+        )
 
 
 class IndependentCriticContractTests(unittest.TestCase):
@@ -314,6 +403,8 @@ class TopFiveGapContractTests(unittest.TestCase):
             "会话收割且面向 coding agent",
             "对照例 6",
             "弹性格式对照例 7",
+            "只对照例 1 的完整字段结构和口吻",
+            "不照搬其中的软件服务对象、材料或排查维度",
         )
 
         for relative_path in self.runtime_copies:
@@ -340,7 +431,7 @@ class TopFiveGapContractTests(unittest.TestCase):
                 self.assertNotRegex(example_6, r"<[^>]+>")
             with self.subTest(path=relative_path, example=7):
                 self.assertIn("弹性格式最小示例", example_7)
-                self.assertIn("用大白话解释 C++ 的 RAII", example_7)
+                self.assertIn("用大白话解释“机会成本”", example_7)
                 self.assertIn("不套五要素标签", example_7)
 
     def test_reset_mainline_and_merged_final_line_are_in_both_copies(
@@ -375,9 +466,39 @@ class TopFiveGapContractTests(unittest.TestCase):
                 with self.subTest(path=relative_path, expected=expected):
                     self.assertIn(expected, content)
 
-    def test_new_examples_are_identical_in_reference_and_portable_copy(
+    def test_guided_sampling_example_is_locked(self) -> None:
+        for relative_path in (
+            "references/examples.md",
+            "portable/easy-prompt-portable.md",
+        ):
+            example_8 = markdown_section(read(relative_path), "## 例 8", None)
+            for expected in (
+                "引导采样 → 上下文回滚·两段式",
+                "先不要给修复方案",
+                "5–8 个可能相关的技术概念",
+                "拿候选术语对照代码、配置和日志核实后，新开一个干净会话再发第二条。",
+                "候选方向不是已确认结论",
+            ):
+                with self.subTest(path=relative_path, expected=expected):
+                    self.assertIn(expected, example_8)
+
+        for relative_path in self.runtime_copies:
+            with self.subTest(path=relative_path, expected="两段式对照例 8"):
+                self.assertIn("两段式对照例 8", read(relative_path))
+
+    def test_copied_examples_are_identical_in_reference_and_portable_copy(
         self,
     ) -> None:
+        reference_example_1 = markdown_section(
+            read("references/examples.md"),
+            "## 例 1",
+            "## 例 2",
+        )
+        portable_example_1 = markdown_section(
+            read("portable/easy-prompt-portable.md"),
+            "## 例 1",
+            "## 例 6",
+        )
         examples = markdown_section(read("references/examples.md"), "## 例 6", None)
         portable = markdown_section(
             read("portable/easy-prompt-portable.md"),
@@ -385,6 +506,7 @@ class TopFiveGapContractTests(unittest.TestCase):
             None,
         )
 
+        self.assertEqual(reference_example_1, portable_example_1)
         self.assertEqual(examples, portable)
 
 

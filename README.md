@@ -2,7 +2,7 @@
 
 把口语化、模糊的“人话需求”转写为结构清楚、约束明确、可直接复制给 AI 的高效提示词。
 
-easy-prompt 最初面向 RoboMaster 新生教学，但规则不依赖特定模型，也可以用于日常学习、编程、方案比较、创意探索和文档生成。
+easy-prompt 不依赖特定模型或任务领域，可以用于日常学习、编程、方案比较、创意探索和文档生成。
 
 ## 它解决什么问题
 
@@ -40,7 +40,7 @@ ln -s "$PWD" ~/.claude/skills/easy-prompt
 重新打开 Claude Code 会话后调用：
 
 ```text
-/easy-prompt 请把“哨兵还能怎么创新”改写成提示词
+/easy-prompt 请把“我们的社区读书会还能怎么创新”改写成提示词
 ```
 
 ### Codex
@@ -53,7 +53,7 @@ ln -s "$PWD" ~/.codex/skills/easy-prompt
 重新打开 Codex 会话后调用：
 
 ```text
-$easy-prompt 请把“我觉得该换 ROS2 Humble，帮我论证下”改写成提示词
+$easy-prompt 请把“我觉得应该选方案 A，帮我论证一下”改写成提示词
 ```
 
 ### OpenCode
@@ -71,7 +71,7 @@ $easy-prompt 请把“我觉得该换 ROS2 Humble，帮我论证下”改写成�
 重启 OpenCode 后，在对话中明确点名：
 
 ```text
-请使用 easy-prompt skill，把“帮我看看这个识别代码为啥掉帧”改写成提示词。
+请使用 easy-prompt skill，把“帮我把这份活动复盘写得更清楚”改写成提示词。
 ```
 
 ## 不安装也能使用
@@ -84,10 +84,10 @@ $easy-prompt 请把“我觉得该换 ROS2 Humble，帮我论证下”改写成�
 
 ```text
 请使用 easy-prompt，把下面这句话改写成可复制的提示词：
-“帮我看看这个识别代码为啥掉帧”
+“帮我比较这三种学习方案”
 ```
 
-如果只发送“帮我看看代码”而没有表达转写意图，skill 会先询问你希望 AI 直接执行任务，还是把需求改写成提示词。
+如果只发送“帮我看看这个方案”而没有表达转写意图，skill 会先询问你希望 AI 直接执行任务，还是把需求改写成提示词。
 
 ## 输出约定
 
@@ -106,9 +106,9 @@ easy-prompt/
 │   ├── recipes.md                   # 五种任务类型配方 + 引导采样两段式
 │   ├── domain-structures.md         # 领域结构：让 AI 看见遗漏的维度
 │   ├── anti-patterns.md             # AP1–AP8 反模式
-│   └── examples.md                  # RoboMaster 场景好坏对照
+│   └── examples.md                  # 跨领域示例与输出合同对照
 ├── tests/
-│   └── test_skill_contract.py        # 背景条件化与独立反方审查契约测试
+│   └── test_skill_contract.py        # 通用化与核心行为契约测试
 └── portable/
     └── easy-prompt-portable.md      # 可粘贴到任意 AI 的单文件版本
 ```
